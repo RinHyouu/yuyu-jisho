@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>yuyu辞書 - Safe Deploy Ed.</title>
+    <title>yuyu辞書 - Handwriting Ed.</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
@@ -13,7 +13,6 @@
         .history-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
         .pitch-badge { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 800; }
         
-        /* 振假名排版 */
         ruby { ruby-align: center; }
         rt { 
             color: #6366f1; 
@@ -22,6 +21,12 @@
             font-family: sans-serif;
             transform: translateY(-2px);
         }
+
+        /* 画板专属样式 */
+        #drawPad {
+            touch-action: none; /* 阻止手指在画板上滑动时页面跟着滚动 */
+            cursor: crosshair;
+        }
     </style>
 </head>
 <body class="min-h-screen p-6 relative">
@@ -29,33 +34,62 @@
     <div class="max-w-6xl mx-auto space-y-8">
         <div class="text-center relative">
             <h1 class="text-4xl font-bold text-gray-800 tracking-tight">yuyu辞書</h1>
-            <p class="mt-2 text-gray-500 italic">Vision OCR & Furigana. Zero Latency Memory.</p>
+            <p class="mt-2 text-gray-500 italic">Vision OCR & Handwriting. The Ultimate Vibe.</p>
             <button onclick="setApiKey()" class="absolute right-0 top-0 md:top-2 mt-2 mr-2 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 py-2 px-4 rounded-full transition-colors shadow-sm font-bold flex items-center gap-1">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
                 密钥管理
             </button>
         </div>
 
-        <div class="max-w-2xl mx-auto glass-card p-2 rounded-3xl shadow-xl transition-all border-2 border-transparent focus-within:border-indigo-100">
+        <div class="max-w-2xl mx-auto glass-card p-2 rounded-3xl shadow-xl transition-all border-2 border-transparent focus-within:border-indigo-100 relative">
             
+            <div id="drawContainer" class="hidden absolute top-full left-0 w-full mt-4 bg-white p-4 rounded-3xl shadow-2xl border border-gray-100 z-50">
+                <div class="flex justify-between items-center mb-2 px-2">
+                    <span class="text-sm font-bold text-gray-500 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        请在下方写下不认识的字
+                    </span>
+                    <button onclick="toggleDrawPad()" class="text-gray-400 hover:text-red-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="border-2 border-dashed border-gray-200 rounded-xl overflow-hidden bg-gray-50 mb-3 relative">
+                    <div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-20">
+                        <div class="w-full h-px bg-gray-400"></div>
+                        <div class="h-full w-px bg-gray-400 absolute"></div>
+                    </div>
+                    <canvas id="drawPad" width="600" height="250" class="w-full block"></canvas>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="clearDrawPad()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-medium transition-colors">清空重写</button>
+                    <button onclick="submitDrawing()" class="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium shadow-md transition-colors flex justify-center items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        识别并解析
+                    </button>
+                </div>
+            </div>
+
             <div id="imagePreviewContainer" class="hidden relative p-4 bg-gray-50 rounded-2xl mb-2 mx-2">
-                <p class="text-xs text-indigo-500 font-bold mb-2">📸 已捕获截图 (AI 将识别此图)：</p>
-                <img id="imagePreview" class="max-h-32 rounded-lg shadow-sm border border-gray-200" src="" alt="预览图">
+                <p class="text-xs text-indigo-500 font-bold mb-2">📸 已捕获图片/手写 (AI 将识别此图)：</p>
+                <img id="imagePreview" class="max-h-32 rounded-lg shadow-sm border border-gray-200 bg-white" src="" alt="预览图">
                 <button onclick="clearImage()" class="absolute top-4 right-4 bg-white text-gray-400 hover:text-red-500 rounded-full p-1 shadow-sm">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
 
-            <div class="flex items-center gap-4 px-4 py-2">
-                <input type="text" id="userInput" placeholder="输入日语/中文，或直接 Ctrl+V 粘贴截图..." 
+            <div class="flex items-center gap-2 px-3 py-2">
+                <button onclick="toggleDrawPad()" class="p-3 text-indigo-500 hover:bg-indigo-50 rounded-2xl cursor-pointer transition-colors" title="手写输入">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </button>
+                
+                <input type="text" id="userInput" placeholder="输入中日文、粘贴截图，或点击左侧手写..." 
                        class="flex-1 bg-transparent py-3 text-lg outline-none border-none placeholder-gray-400">
-                <button onclick="fetchJapanese()" id="btnText" class="bg-indigo-600 text-white px-8 py-3 rounded-2xl hover:bg-indigo-700 transition-all active:scale-95 font-medium shadow-lg shadow-indigo-200 shrink-0">
+                
+                <button onclick="fetchJapanese()" id="btnText" class="bg-indigo-600 text-white px-6 py-3 rounded-2xl hover:bg-indigo-700 transition-all active:scale-95 font-medium shadow-lg shadow-indigo-200 shrink-0">
                     智能解析
                 </button>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start mt-8">
             
             <div id="resultBox" class="hidden lg:col-span-2 glass-card p-10 rounded-3xl shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                 
@@ -122,6 +156,77 @@
     <script>
         let currentImageBase64 = null; 
 
+        // --- 画板核心逻辑 ---
+        const canvas = document.getElementById('drawPad');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+
+        // 初始化画板白色背景 (对生成图片识别更好)
+        function initCanvas() {
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "black";
+        }
+        initCanvas();
+
+        function toggleDrawPad() {
+            const pad = document.getElementById('drawContainer');
+            pad.classList.toggle('hidden');
+            if(!pad.classList.contains('hidden')) {
+                // 确保尺寸自适应
+                canvas.width = canvas.parentElement.clientWidth;
+                initCanvas();
+            }
+        }
+
+        function clearDrawPad() {
+            initCanvas();
+        }
+
+        function submitDrawing() {
+            // 将画板内容转为 base64 图片数据
+            const dataURL = canvas.toDataURL('image/jpeg', 1.0);
+            currentImageBase64 = dataURL.split(',')[1];
+            
+            // 显示在预览区
+            document.getElementById('imagePreview').src = dataURL;
+            document.getElementById('imagePreviewContainer').classList.remove('hidden');
+            
+            // 关闭画板并自动触发搜索
+            toggleDrawPad();
+            document.getElementById('userInput').value = ''; // 清空可能存在的文字干扰
+            fetchJapanese();
+        }
+
+        // 鼠标事件
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; draw(e); });
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', () => { isDrawing = false; ctx.beginPath(); });
+        canvas.addEventListener('mouseout', () => { isDrawing = false; ctx.beginPath(); });
+
+        // 触屏事件 (iPhone/iPad 适配)
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; draw(e.touches[0]); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }, {passive: false});
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); isDrawing = false; ctx.beginPath(); }, {passive: false});
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            // 计算缩放比例，修复在高分屏/自适应下的坐标偏移
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+        // --- 画板逻辑结束 ---
+
         document.addEventListener('DOMContentLoaded', () => {
             loadHistory();
             
@@ -143,7 +248,6 @@
             });
         });
 
-        // --- 核心安全机制：API Key 管理 ---
         function getApiKey() {
             let key = localStorage.getItem('yuyu_api_key');
             if (!key) {
@@ -183,28 +287,27 @@
             const input = document.getElementById('userInput').value.trim();
             if (!input && !currentImageBase64) return;
             
-            // 发起请求前检查密钥
             const apiKey = getApiKey();
             if (!apiKey) {
                 alert("⚠️ 需要配置 API Key 才能呼叫 AI 引擎哦！请点击右上角【密钥管理】设置。");
                 return;
             }
 
-            // 动态构建包含安全密钥的 URL (锁定在 2.5-flash)
             const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
             toggleLoading(true);
 
             let promptText = `你是一个专业的日语外教。`;
             if (currentImageBase64) {
-                promptText += `用户上传了一张截图。请先精确提取并识别图片中的核心日文内容（如果用户输入框有补充说明文字"${input}"，请结合分析）。`;
+                // 如果用户既画了画，又输了文字，结合起来理解
+                promptText += `用户上传了一张截图或手写的汉字。请精确提取并识别图片中的核心日文内容（如果用户输入框有补充文字"${input}"，请结合分析。如果是手写字，请识别并翻译这个字）。`;
             } else {
                 promptText += `请分析用户的输入："${input}"。`;
             }
 
             promptText += `
             分析规则：
-            1. 如果提取/输入的是【单词】：提供假名、音调、纯日文释义、中文释义、3个不同场景的例句（含中文翻译）。
+            1. 如果提取/输入的是【单词/单个汉字】：提供假名、音调、纯日文释义、中文释义、3个不同场景的例句（含中文翻译）。
             2. 如果提取/输入的是【短语或长句】：提供整句拼读、整句中文翻译，并详细拆解语法结构。
             
             🔥【强制注音规则】🔥：
@@ -215,7 +318,7 @@
             严格返回以下纯JSON格式（不要包含markdown标记）：
             {
                 "is_sentence": true或false,
-                "text": "提取的日语原文",
+                "text": "提取的日语原文或汉字",
                 "reading": "假名或整句拼读",
                 "pitch": "音调(如①型。长句留空)",
                 "jp_meaning": "带 ruby 注音的日语释义(仅单词)",
@@ -242,7 +345,6 @@
 
                 const data = await response.json();
                 
-                // 拦截常见的鉴权错误
                 if (data.error) {
                     if (data.error.code === 400 && data.error.message.includes("API key not valid")) {
                         throw new Error("API Key 无效，请检查是否填错，或者去右上角【密钥管理】重新设置。");
