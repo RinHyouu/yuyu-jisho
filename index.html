@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>yuyu辞書 - Safe Deploy Ed.</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
+        body { background: #fcfbf9; font-family: 'PingFang SC', 'Noto Serif JP', serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid #f0f0f0; }
+        .history-card { cursor: pointer; transition: all 0.2s ease; }
+        .history-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+        .pitch-badge { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 800; }
+        
+        /* 振假名排版 */
+        ruby { ruby-align: center; }
+        rt { 
+            color: #6366f1; 
+            font-size: 0.65em; 
+            font-weight: 600; 
+            font-family: sans-serif;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-6 relative">
+
+    <div class="max-w-6xl mx-auto space-y-8">
+        <div class="text-center relative">
+            <h1 class="text-4xl font-bold text-gray-800 tracking-tight">yuyu辞書</h1>
+            <p class="mt-2 text-gray-500 italic">Vision OCR & Furigana. Zero Latency Memory.</p>
+            <button onclick="setApiKey()" class="absolute right-0 top-0 md:top-2 mt-2 mr-2 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 py-2 px-4 rounded-full transition-colors shadow-sm font-bold flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                密钥管理
+            </button>
+        </div>
+
+        <div class="max-w-2xl mx-auto glass-card p-2 rounded-3xl shadow-xl transition-all border-2 border-transparent focus-within:border-indigo-100">
+            
+            <div id="imagePreviewContainer" class="hidden relative p-4 bg-gray-50 rounded-2xl mb-2 mx-2">
+                <p class="text-xs text-indigo-500 font-bold mb-2">📸 已捕获截图 (AI 将识别此图)：</p>
+                <img id="imagePreview" class="max-h-32 rounded-lg shadow-sm border border-gray-200" src="" alt="预览图">
+                <button onclick="clearImage()" class="absolute top-4 right-4 bg-white text-gray-400 hover:text-red-500 rounded-full p-1 shadow-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-4 px-4 py-2">
+                <input type="text" id="userInput" placeholder="输入日语/中文，或直接 Ctrl+V 粘贴截图..." 
+                       class="flex-1 bg-transparent py-3 text-lg outline-none border-none placeholder-gray-400">
+                <button onclick="fetchJapanese()" id="btnText" class="bg-indigo-600 text-white px-8 py-3 rounded-2xl hover:bg-indigo-700 transition-all active:scale-95 font-medium shadow-lg shadow-indigo-200 shrink-0">
+                    智能解析
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            
+            <div id="resultBox" class="hidden lg:col-span-2 glass-card p-10 rounded-3xl shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                
+                <div class="flex justify-between items-start">
+                    <div class="flex-1 pr-6">
+                        <h2 id="jpWord" class="text-4xl md:text-5xl font-bold text-gray-900 mb-3 leading-tight"></h2>
+                        <div class="flex items-center flex-wrap gap-3">
+                            <p id="jpReading" class="text-xl text-gray-500 font-medium"></p>
+                            <span id="jpPitch" class="hidden pitch-badge bg-amber-100 text-amber-700 px-3 py-1 rounded-lg text-sm shadow-sm border border-amber-200"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 shrink-0">
+                        <button onclick="openGoogleImages()" class="p-3 bg-emerald-50 rounded-full text-emerald-600 hover:bg-emerald-100 transition-colors shadow-sm" title="谷歌真实图片">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        </button>
+                        <button onclick="playAudio()" class="p-3 bg-indigo-50 rounded-full text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm" title="播放原声">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="h-px bg-gray-100 w-full"></div>
+
+                <div class="grid grid-cols-1 gap-6">
+                    <div id="jpMeaningBox" class="space-y-2 bg-indigo-50/40 p-5 rounded-2xl border border-indigo-50">
+                        <p class="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            日本語での意味 (汉字自带注音)
+                        </p>
+                        <p id="jpMeaning" class="text-gray-800 leading-relaxed text-lg font-medium tracking-wide"></p>
+                    </div>
+                    <div class="space-y-2 px-2">
+                        <p class="text-xs font-black text-gray-400 uppercase tracking-widest">中文翻译</p>
+                        <p id="cnMeaning" class="text-gray-700 leading-relaxed text-md"></p>
+                    </div>
+                </div>
+
+                <div id="exampleBox" class="space-y-4 px-2">
+                    <p class="text-xs font-black text-gray-400 uppercase tracking-widest">記憶のための例文</p>
+                    <ul id="jpExamplesList" class="space-y-5 text-gray-800 border-l-4 border-indigo-200 pl-5 text-lg">
+                        </ul>
+                </div>
+
+                <div id="grammarBox" class="hidden space-y-4 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                    <p class="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                        语法深度拆解 (带注音)
+                    </p>
+                    <div id="jpGrammar" class="text-gray-700 leading-relaxed text-base whitespace-pre-wrap space-y-2"></div>
+                </div>
+            </div>
+
+            <div class="glass-card p-8 rounded-3xl shadow-xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">学習履歴</h3>
+                    <button onclick="clearHistory()" class="text-sm text-red-500 hover:underline">清空</button>
+                </div>
+                <div id="historyList" class="space-y-3 h-[600px] overflow-y-auto pr-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentImageBase64 = null; 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHistory();
+            
+            document.addEventListener('paste', function(e) {
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (let index in items) {
+                    const item = items[index];
+                    if (item.kind === 'file' && item.type.startsWith('image/')) {
+                        const blob = item.getAsFile();
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            currentImageBase64 = event.target.result.split(',')[1]; 
+                            document.getElementById('imagePreview').src = event.target.result;
+                            document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                }
+            });
+        });
+
+        // --- 核心安全机制：API Key 管理 ---
+        function getApiKey() {
+            let key = localStorage.getItem('yuyu_api_key');
+            if (!key) {
+                key = window.prompt("【yuyu辞書 - 安全初始化】\n\n检测到您是首次使用，请输入您的 Gemini API Key。\n\n🔒 隐私承诺：您的密钥将只保存在当前设备的本地缓存中，绝不会上传至任何第三方服务器。");
+                if (key && key.trim() !== '') {
+                    localStorage.setItem('yuyu_api_key', key.trim());
+                } else {
+                    return null;
+                }
+            }
+            return key.trim();
+        }
+
+        function setApiKey() {
+            let current = localStorage.getItem('yuyu_api_key') || '';
+            let msg = current ? "【密钥管理】\n已检测到本地保存的 Key。\n您可以粘贴新的 Key 来覆盖它，或者清空输入框并点击确定来删除当前 Key。" : "【密钥管理】\n请输入新的 Gemini API Key：";
+            let newKey = window.prompt(msg, current);
+            
+            if (newKey !== null) {
+                if (newKey.trim() === '') {
+                    localStorage.removeItem('yuyu_api_key');
+                    alert("🗑️ API Key 已从本地安全清除！");
+                } else {
+                    localStorage.setItem('yuyu_api_key', newKey.trim());
+                    alert("✅ API Key 已更新并安全锁入本地缓存！");
+                }
+            }
+        }
+
+        function clearImage() {
+            currentImageBase64 = null;
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+            document.getElementById('imagePreview').src = '';
+        }
+
+        async function fetchJapanese() {
+            const input = document.getElementById('userInput').value.trim();
+            if (!input && !currentImageBase64) return;
+            
+            // 发起请求前检查密钥
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                alert("⚠️ 需要配置 API Key 才能呼叫 AI 引擎哦！请点击右上角【密钥管理】设置。");
+                return;
+            }
+
+            // 动态构建包含安全密钥的 URL (锁定在 2.5-flash)
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+            toggleLoading(true);
+
+            let promptText = `你是一个专业的日语外教。`;
+            if (currentImageBase64) {
+                promptText += `用户上传了一张截图。请先精确提取并识别图片中的核心日文内容（如果用户输入框有补充说明文字"${input}"，请结合分析）。`;
+            } else {
+                promptText += `请分析用户的输入："${input}"。`;
+            }
+
+            promptText += `
+            分析规则：
+            1. 如果提取/输入的是【单词】：提供假名、音调、纯日文释义、中文释义、3个不同场景的例句（含中文翻译）。
+            2. 如果提取/输入的是【短语或长句】：提供整句拼读、整句中文翻译，并详细拆解语法结构。
+            
+            🔥【强制注音规则】🔥：
+            为了方便新手阅读，在返回的 'jp_meaning'、'examples' 的日语部分、以及 'grammar' 的日语部分中，**必须**使用 HTML 的 ruby 标签给所有出现的【汉字】标注假名！
+            示例格式：<ruby>直列<rt>ちょくれつ</rt></ruby>。
+            注意：纯假名不需要 ruby 标签，只给汉字注音。中文翻译请统一用全角括号（）包裹。
+
+            严格返回以下纯JSON格式（不要包含markdown标记）：
+            {
+                "is_sentence": true或false,
+                "text": "提取的日语原文",
+                "reading": "假名或整句拼读",
+                "pitch": "音调(如①型。长句留空)",
+                "jp_meaning": "带 ruby 注音的日语释义(仅单词)",
+                "cn_meaning": "中文释义或翻译",
+                "examples": [
+                    "带 ruby 注音的例句日文 （中文翻译）"
+                ],
+                "grammar": "带 ruby 注音的语法拆解(仅长句)"
+            }`;
+
+            const parts = [{ text: promptText }];
+            if (currentImageBase64) {
+                parts.push({
+                    inlineData: { mimeType: "image/jpeg", data: currentImageBase64 }
+                });
+            }
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: parts }] })
+                });
+
+                const data = await response.json();
+                
+                // 拦截常见的鉴权错误
+                if (data.error) {
+                    if (data.error.code === 400 && data.error.message.includes("API key not valid")) {
+                        throw new Error("API Key 无效，请检查是否填错，或者去右上角【密钥管理】重新设置。");
+                    }
+                    throw new Error(data.error.message);
+                }
+
+                let rawText = data.candidates[0].content.parts[0].text;
+                const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error("AI 返回格式异常");
+                
+                const result = JSON.parse(jsonMatch[0]);
+                renderResult(result, true); 
+                
+                if(currentImageBase64) clearImage(); 
+                document.getElementById('userInput').value = ''; 
+                
+            } catch (error) {
+                console.error(error);
+                alert("出错啦...\n提示: " + error.message);
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        function renderResult(result, shouldSave = false) {
+            document.getElementById('jpWord').innerText = result.text || "";
+            document.getElementById('jpReading').innerText = result.reading || "";
+            document.getElementById('cnMeaning').innerText = result.cn_meaning || "";
+            
+            const jpMeaningBox = document.getElementById('jpMeaningBox');
+            if (result.jp_meaning) {
+                document.getElementById('jpMeaning').innerHTML = result.jp_meaning; 
+                jpMeaningBox.classList.remove('hidden');
+            } else {
+                jpMeaningBox.classList.add('hidden');
+            }
+            
+            const pitchEl = document.getElementById('jpPitch');
+            if (result.pitch) {
+                pitchEl.innerText = result.pitch;
+                pitchEl.classList.remove('hidden');
+            } else {
+                pitchEl.classList.add('hidden');
+            }
+
+            const exampleBox = document.getElementById('exampleBox');
+            const grammarBox = document.getElementById('grammarBox');
+            
+            if (result.is_sentence && result.grammar) {
+                exampleBox.classList.add('hidden');
+                grammarBox.classList.remove('hidden');
+                document.getElementById('jpGrammar').innerHTML = result.grammar; 
+            } else {
+                grammarBox.classList.add('hidden');
+                exampleBox.classList.remove('hidden');
+                
+                const listEl = document.getElementById('jpExamplesList');
+                listEl.innerHTML = '';
+                if (result.examples && result.examples.length > 0) {
+                    result.examples.forEach(ex => {
+                        const li = document.createElement('li');
+                        li.className = "pb-4 border-b border-dashed border-gray-100 last:border-0 leading-relaxed";
+                        let formattedEx = ex.replace(/（(.*?)）|\((.*?)\)/g, '<br><span class="text-sm text-gray-400 mt-1 inline-block">($1$2)</span>');
+                        li.innerHTML = formattedEx;
+                        listEl.appendChild(li);
+                    });
+                }
+            }
+            
+            document.getElementById('resultBox').classList.remove('hidden');
+
+            if (shouldSave) {
+                saveToHistory(result); 
+            }
+        }
+
+        function openGoogleImages() {
+            const word = document.getElementById('jpWord').innerText;
+            if (!word) return;
+            window.open(`https://www.google.co.jp/search?tbm=isch&q=${encodeURIComponent(word)}`, '_blank');
+        }
+
+        function saveToHistory(entry) {
+            let history = JSON.parse(localStorage.getItem('jp_vibe_history') || '[]');
+            history = history.filter(item => item.text !== entry.text);
+            history.unshift(entry); 
+            localStorage.setItem('jp_vibe_history', JSON.stringify(history.slice(0, 30)));
+            loadHistory();
+        }
+
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('jp_vibe_history') || '[]');
+            const listEl = document.getElementById('historyList');
+            listEl.innerHTML = history.length === 0 ? `<p class="text-center text-gray-400 py-10">暂无学习记录。</p>` : '';
+
+            history.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "history-card glass-card p-4 rounded-xl flex flex-col shadow-sm";
+                card.onclick = () => {
+                    renderResult(item, false); 
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+                };
+                card.innerHTML = `
+                    <div class="truncate pr-4">
+                        <div class="text-lg font-bold text-gray-900 truncate">${item.text}</div>
+                        <div class="text-sm text-indigo-500 truncate">${item.reading}</div>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        function clearHistory() {
+            if(confirm("确定清空吗？")) {
+                localStorage.removeItem('jp_vibe_history');
+                loadHistory();
+                document.getElementById('resultBox').classList.add('hidden');
+            }
+        }
+
+        function toggleLoading(isLoading) {
+            document.getElementById('btnText').innerText = isLoading ? "识别中..." : "智能解析";
+        }
+
+        function playAudio() {
+            const word = document.getElementById('jpWord').innerText;
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.lang = 'ja-JP';
+            utterance.rate = 0.8; 
+            window.speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+</html>
