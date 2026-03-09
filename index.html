@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>yuyu辞書 - Handwriting Ed.</title>
+    <title>yuyu辞書 - Handwriting & Memory Ed.</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
@@ -22,9 +22,8 @@
             transform: translateY(-2px);
         }
 
-        /* 画板专属样式 */
         #drawPad {
-            touch-action: none; /* 阻止手指在画板上滑动时页面跟着滚动 */
+            touch-action: none;
             cursor: crosshair;
         }
     </style>
@@ -34,14 +33,14 @@
     <div class="max-w-6xl mx-auto space-y-8">
         <div class="text-center relative">
             <h1 class="text-4xl font-bold text-gray-800 tracking-tight">yuyu辞書</h1>
-            <p class="mt-2 text-gray-500 italic">Vision OCR & Handwriting. The Ultimate Vibe.</p>
+            <p class="mt-2 text-gray-500 italic">Vision OCR, Handwriting & Memory Hints.</p>
             <button onclick="setApiKey()" class="absolute right-0 top-0 md:top-2 mt-2 mr-2 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 py-2 px-4 rounded-full transition-colors shadow-sm font-bold flex items-center gap-1">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
                 密钥管理
             </button>
         </div>
 
-        <div class="max-w-2xl mx-auto glass-card p-2 rounded-3xl shadow-xl transition-all border-2 border-transparent focus-within:border-indigo-100 relative">
+        <div class="max-w-2xl mx-auto glass-card p-2 rounded-3xl shadow-xl transition-all border-2 border-transparent focus-within:border-indigo-100 relative z-50">
             
             <div id="drawContainer" class="hidden absolute top-full left-0 w-full mt-4 bg-white p-4 rounded-3xl shadow-2xl border border-gray-100 z-50">
                 <div class="flex justify-between items-center mb-2 px-2">
@@ -89,7 +88,7 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start mt-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start mt-8 relative z-10">
             
             <div id="resultBox" class="hidden lg:col-span-2 glass-card p-10 rounded-3xl shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                 
@@ -128,10 +127,17 @@
                     </div>
                 </div>
 
+                <div id="memoryBox" class="hidden space-y-2 bg-amber-50/60 p-5 rounded-2xl border border-amber-100">
+                    <p class="text-xs font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+                        💡 記憶のためのヒント (語呂合わせ・語源)
+                    </p>
+                    <p id="jpMemory" class="text-gray-700 leading-relaxed text-base whitespace-pre-wrap"></p>
+                </div>
+
                 <div id="exampleBox" class="space-y-4 px-2">
                     <p class="text-xs font-black text-gray-400 uppercase tracking-widest">記憶のための例文</p>
                     <ul id="jpExamplesList" class="space-y-5 text-gray-800 border-l-4 border-indigo-200 pl-5 text-lg">
-                        </ul>
+                    </ul>
                 </div>
 
                 <div id="grammarBox" class="hidden space-y-4 bg-gray-50 p-6 rounded-2xl border border-gray-100">
@@ -143,7 +149,7 @@
                 </div>
             </div>
 
-            <div class="glass-card p-8 rounded-3xl shadow-xl">
+            <div class="glass-card p-8 rounded-3xl shadow-xl relative z-10">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl font-bold text-gray-800">学習履歴</h3>
                     <button onclick="clearHistory()" class="text-sm text-red-500 hover:underline">清空</button>
@@ -161,7 +167,6 @@
         const ctx = canvas.getContext('2d');
         let isDrawing = false;
 
-        // 初始化画板白色背景 (对生成图片识别更好)
         function initCanvas() {
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -175,7 +180,6 @@
             const pad = document.getElementById('drawContainer');
             pad.classList.toggle('hidden');
             if(!pad.classList.contains('hidden')) {
-                // 确保尺寸自适应
                 canvas.width = canvas.parentElement.clientWidth;
                 initCanvas();
             }
@@ -186,27 +190,22 @@
         }
 
         function submitDrawing() {
-            // 将画板内容转为 base64 图片数据
             const dataURL = canvas.toDataURL('image/jpeg', 1.0);
             currentImageBase64 = dataURL.split(',')[1];
             
-            // 显示在预览区
             document.getElementById('imagePreview').src = dataURL;
             document.getElementById('imagePreviewContainer').classList.remove('hidden');
             
-            // 关闭画板并自动触发搜索
             toggleDrawPad();
-            document.getElementById('userInput').value = ''; // 清空可能存在的文字干扰
+            document.getElementById('userInput').value = ''; 
             fetchJapanese();
         }
 
-        // 鼠标事件
         canvas.addEventListener('mousedown', (e) => { isDrawing = true; draw(e); });
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', () => { isDrawing = false; ctx.beginPath(); });
         canvas.addEventListener('mouseout', () => { isDrawing = false; ctx.beginPath(); });
 
-        // 触屏事件 (iPhone/iPad 适配)
         canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; draw(e.touches[0]); }, {passive: false});
         canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }, {passive: false});
         canvas.addEventListener('touchend', (e) => { e.preventDefault(); isDrawing = false; ctx.beginPath(); }, {passive: false});
@@ -214,7 +213,6 @@
         function draw(e) {
             if (!isDrawing) return;
             const rect = canvas.getBoundingClientRect();
-            // 计算缩放比例，修复在高分屏/自适应下的坐标偏移
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             const x = (e.clientX - rect.left) * scaleX;
@@ -225,7 +223,6 @@
             ctx.beginPath();
             ctx.moveTo(x, y);
         }
-        // --- 画板逻辑结束 ---
 
         document.addEventListener('DOMContentLoaded', () => {
             loadHistory();
@@ -293,40 +290,41 @@
                 return;
             }
 
+            // 必要に応じて 1.5-flash または 2.5-flash に切り替えてください
             const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
             toggleLoading(true);
 
-            let promptText = `你是一个专业的日语外教。`;
+            let promptText = `あなたはプロの日本語教師です。`;
             if (currentImageBase64) {
-                // 如果用户既画了画，又输了文字，结合起来理解
-                promptText += `用户上传了一张截图或手写的汉字。请精确提取并识别图片中的核心日文内容（如果用户输入框有补充文字"${input}"，请结合分析。如果是手写字，请识别并翻译这个字）。`;
+                promptText += `ユーザーが画像をアップロードしました。画像内の主要な日本語を正確に抽出し認識してください（ユーザーが入力枠に"${input}"と補足している場合はそれも考慮してください。手書きの漢字の場合はその文字を特定してください）。`;
             } else {
-                promptText += `请分析用户的输入："${input}"。`;
+                promptText += `ユーザーの入力「${input}」を分析してください。`;
             }
 
             promptText += `
-            分析规则：
-            1. 如果提取/输入的是【单词/单个汉字】：提供假名、音调、纯日文释义、中文释义、3个不同场景的例句（含中文翻译）。
-            2. 如果提取/输入的是【短语或长句】：提供整句拼读、整句中文翻译，并详细拆解语法结构。
+            分析ルール：
+            1. 【単語/漢字】の場合：ふりがな、アクセント、日本語での意味、中国語訳、3つの例文（中国語訳付き）、さらに「語源や音の響き、ダジャレを用いた記憶のヒント（語呂合わせ）」を提供してください。
+            2. 【フレーズ/長文】の場合：全体のふりがな、全体の中国語訳、詳細な文法解説を提供してください。
             
-            🔥【强制注音规则】🔥：
-            为了方便新手阅读，在返回的 'jp_meaning'、'examples' 的日语部分、以及 'grammar' 的日语部分中，**必须**使用 HTML 的 ruby 标签给所有出现的【汉字】标注假名！
-            示例格式：<ruby>直列<rt>ちょくれつ</rt></ruby>。
-            注意：纯假名不需要 ruby 标签，只给汉字注音。中文翻译请统一用全角括号（）包裹。
+            🔥【強制ルビ（ふりがな）ルール】🔥：
+            初学者が読みやすいように、返却する 'jp_meaning', 'examples', 'grammar', 'memory_hint' の日本語部分に含まれる**すべての漢字**に、HTMLの <ruby> タグを使ってふりがなを振ってください！
+            例：<ruby>直列<rt>ちょくれつ</rt></ruby>。
+            注意：ひらがな・カタカナのみの部分にはrubyタグを付けず、漢字にのみ付けてください。中国語訳は全角括弧（）で囲んでください。
 
-            严格返回以下纯JSON格式（不要包含markdown标记）：
+            以下の厳密なJSON形式で返してください（Markdown記法は含めないでください）：
             {
-                "is_sentence": true或false,
-                "text": "提取的日语原文或汉字",
-                "reading": "假名或整句拼读",
-                "pitch": "音调(如①型。长句留空)",
-                "jp_meaning": "带 ruby 注音的日语释义(仅单词)",
-                "cn_meaning": "中文释义或翻译",
+                "is_sentence": true または false,
+                "text": "抽出した日本語原文または漢字",
+                "reading": "ふりがな、または全体の読み",
+                "pitch": "アクセント(例: ①型。長文は空文字)",
+                "jp_meaning": "rubyタグ付きの日本語での意味(単語のみ)",
+                "cn_meaning": "中国語訳",
+                "memory_hint": "rubyタグ付きの記憶のヒントや語呂合わせ(単語のみ。長文は空文字)",
                 "examples": [
-                    "带 ruby 注音的例句日文 （中文翻译）"
+                    "rubyタグ付きの例文日文 （中国語訳）"
                 ],
-                "grammar": "带 ruby 注音的语法拆解(仅长句)"
+                "grammar": "rubyタグ付きの文法解説(長文のみ)"
             }`;
 
             const parts = [{ text: promptText }];
@@ -347,14 +345,14 @@
                 
                 if (data.error) {
                     if (data.error.code === 400 && data.error.message.includes("API key not valid")) {
-                        throw new Error("API Key 无效，请检查是否填错，或者去右上角【密钥管理】重新设置。");
+                        throw new Error("API Keyが無効です。【密钥管理】から再設定してください。");
                     }
                     throw new Error(data.error.message);
                 }
 
                 let rawText = data.candidates[0].content.parts[0].text;
                 const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) throw new Error("AI 返回格式异常");
+                if (!jsonMatch) throw new Error("AIの返答形式に異常があります");
                 
                 const result = JSON.parse(jsonMatch[0]);
                 renderResult(result, true); 
@@ -364,7 +362,7 @@
                 
             } catch (error) {
                 console.error(error);
-                alert("出错啦...\n提示: " + error.message);
+                alert("エラーが発生しました...\nヒント: " + error.message);
             } finally {
                 toggleLoading(false);
             }
@@ -381,6 +379,16 @@
                 jpMeaningBox.classList.remove('hidden');
             } else {
                 jpMeaningBox.classList.add('hidden');
+            }
+
+            // --- 記憶のヒント（語呂合わせ）の描画 ---
+            const memoryBox = document.getElementById('memoryBox');
+            if (result.memory_hint && !result.is_sentence) {
+                // 改行を反映させる
+                document.getElementById('jpMemory').innerHTML = result.memory_hint.replace(/\n/g, '<br>'); 
+                memoryBox.classList.remove('hidden');
+            } else {
+                memoryBox.classList.add('hidden');
             }
             
             const pitchEl = document.getElementById('jpPitch');
