@@ -227,6 +227,15 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadHistory();
             
+            // 👇 这里是新增的回车键监听代码 👇
+            document.getElementById('userInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // 阻止默认的回车行为（比如换行）
+                    fetchJapanese();    // 触发解析功能
+                }
+            });
+            // 👆 新增代码结束 👆
+
             document.addEventListener('paste', function(e) {
                 const items = (e.clipboardData || e.originalEvent.clipboardData).items;
                 for (let index in items) {
